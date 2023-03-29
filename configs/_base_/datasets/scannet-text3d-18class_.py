@@ -1,5 +1,5 @@
 # dataset settings
-dataset_type = 'ScannetDatasetCustom'
+dataset_type = 'ScanNetDataset'
 data_root = './data/scannet/'
 class_names = ('cabinet', 'bed', 'chair', 'sofa', 'table', 'door', 'window',
                'bookshelf', 'picture', 'counter', 'desk', 'curtain',

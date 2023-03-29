@@ -32,7 +32,9 @@ class VoteNet(SingleStage3DDetector):
                       gt_labels_3d,
                       pts_semantic_mask=None,
                       pts_instance_mask=None,
-                      gt_bboxes_ignore=None):
+                      gt_bboxes_ignore=None,
+                      text_features=None
+                      ):
         """Forward of training.
 
         Args:
@@ -55,12 +57,12 @@ class VoteNet(SingleStage3DDetector):
         x = self.extract_feat(points_cat)
         bbox_preds = self.bbox_head(x, self.train_cfg.sample_mod)
         loss_inputs = (points, gt_bboxes_3d, gt_labels_3d, pts_semantic_mask,
-                       pts_instance_mask, img_metas)
+                       pts_instance_mask, img_metas, text_features)
         losses = self.bbox_head.loss(
             bbox_preds, *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
 
-    def simple_test(self, points, img_metas, imgs=None, rescale=False):
+    def simple_test(self, points, img_metas,imgs=None, rescale=False, class_features=None):
         """Forward of testing.
 
         Args:
@@ -72,9 +74,18 @@ class VoteNet(SingleStage3DDetector):
             list: Predicted 3d boxes.
         """
         points_cat = torch.stack(points)
-
+        class_features = torch.stack(class_features[0])
         x = self.extract_feat(points_cat)
         bbox_preds = self.bbox_head(x, self.test_cfg.sample_mod)
+        cls_out = bbox_preds['sem_scores']
+        logit_scale = self.bbox_head.logit_scale.exp()
+        vis_feat = cls_out / (cls_out.norm(dim=1, keepdim=True) + 1e-6)
+        class_features = class_features @ self.bbox_head.text_proj
+        text_feat = class_features / (class_features.norm(dim=1, keepdim=True) + 1e-6)
+        S = (logit_scale * vis_feat) @ (text_feat.transpose(1, 2))
+
+        bbox_preds['sem_scores'] = S
+
         bbox_list = self.bbox_head.get_bboxes(
             points_cat, bbox_preds, img_metas, rescale=rescale)
         bbox_results = [
@@ -105,3 +116,29 @@ class VoteNet(SingleStage3DDetector):
                                             self.bbox_head.test_cfg)
 
         return [merged_bboxes]
+
+    def test_with_features(self, points, img_metas, class_features, rescale=False):
+        """Forward of testing.
+
+        Args:
+            points (list[torch.Tensor]): Points of each sample.
+            img_metas (list): Image metas.
+            rescale (bool): Whether to rescale results.
+
+        Returns:
+            list: Predicted 3d boxes.
+        """
+        points_cat = torch.stack(points)
+
+        x = self.extract_feat(points_cat)
+
+        bbox_preds = self.bbox_head(x, self.test_cfg.sample_mod)
+
+        # bbox_preds['sem_score'] =
+        bbox_list = self.bbox_head.get_bboxes(
+            points_cat, bbox_preds, img_metas, rescale=rescale)
+        bbox_results = [
+            bbox3d2result(bboxes, scores, labels)
+            for bboxes, scores, labels in bbox_list
+        ]
+        return bbox_results

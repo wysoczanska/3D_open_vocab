@@ -212,6 +212,8 @@ class Custom3DDataset(Dataset):
         results['seg_fields'] = []
         results['box_type_3d'] = self.box_type_3d
         results['box_mode_3d'] = self.box_mode_3d
+        results['text_features'] = []
+        results['class_features'] = []
 
     def prepare_train_data(self, index):
         """Training data preparation.

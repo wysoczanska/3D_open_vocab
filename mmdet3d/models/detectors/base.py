@@ -57,6 +57,7 @@ class Base3DDetector(BaseDetector):
         augmentations.
         """
         if return_loss:
+
             return self.forward_train(**kwargs)
         else:
             return self.forward_test(**kwargs)

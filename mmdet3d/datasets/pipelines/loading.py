@@ -525,6 +525,7 @@ class LoadAnnotations3D(LoadAnnotations):
                  with_mask=False,
                  with_seg=False,
                  with_bbox_depth=False,
+                 with_text_feats=False,
                  poly2mask=True,
                  seg_3d_dtype=np.int64,
                  file_client_args=dict(backend='disk')):
@@ -542,6 +543,7 @@ class LoadAnnotations3D(LoadAnnotations):
         self.with_mask_3d = with_mask_3d
         self.with_seg_3d = with_seg_3d
         self.seg_3d_dtype = seg_3d_dtype
+        self.with_text_feats = with_text_feats
 
     def _load_bboxes_3d(self, results):
         """Private function to load 3D bounding box annotations.
@@ -591,6 +593,21 @@ class LoadAnnotations3D(LoadAnnotations):
             dict: The dict containing loaded label annotations.
         """
         results['attr_labels'] = results['ann_info']['attr_labels']
+        return results
+
+    def _load_text_features(self, results):
+        """Private function to load text features labels.
+
+        Args:
+            results (dict): Result dict from :obj:`mmdet3d.CustomDataset`.
+
+        Returns:
+            dict: The dict containing loaded label annotations.
+        """
+        results['text_features'] = results['ann_info']['text_features']
+        if 'class_features' in results['ann_info'].keys():
+            results['class_features'] = results['ann_info']['class_features']
+
         return results
 
     def _load_masks_3d(self, results):
@@ -672,6 +689,8 @@ class LoadAnnotations3D(LoadAnnotations):
             results = self._load_masks_3d(results)
         if self.with_seg_3d:
             results = self._load_semantic_seg_3d(results)
+        if self.with_text_feats:
+            results = self._load_text_features(results)
 
         return results
 

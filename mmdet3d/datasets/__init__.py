@@ -24,6 +24,7 @@ from .pipelines import (AffineResize, BackgroundPointsFilter, GlobalAlignment,
 from .s3dis_dataset import S3DISDataset, S3DISSegDataset
 from .scannet_dataset import (ScanNetDataset, ScanNetInstanceSegDataset,
                               ScanNetSegDataset)
+from .scannet_dataset_custom import ScannetDatasetCustom
 from .semantickitti_dataset import SemanticKITTIDataset
 from .sunrgbd_dataset import SUNRGBDDataset
 from .utils import get_loading_pipeline
