@@ -56,8 +56,12 @@ class VoteNet(SingleStage3DDetector):
 
         x = self.extract_feat(points_cat)
         bbox_preds = self.bbox_head(x, self.train_cfg.sample_mod)
-        loss_inputs = (points, gt_bboxes_3d, gt_labels_3d, pts_semantic_mask,
-                       pts_instance_mask, img_metas, text_features)
+        if text_features is not None:
+            loss_inputs = (points, gt_bboxes_3d, gt_labels_3d, pts_semantic_mask,
+                           pts_instance_mask, img_metas, text_features)
+        else:
+            loss_inputs = (points, gt_bboxes_3d, gt_labels_3d, pts_semantic_mask,
+                           pts_instance_mask, img_metas)
         losses = self.bbox_head.loss(
             bbox_preds, *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
@@ -74,17 +78,18 @@ class VoteNet(SingleStage3DDetector):
             list: Predicted 3d boxes.
         """
         points_cat = torch.stack(points)
-        class_features = torch.stack(class_features[0])
         x = self.extract_feat(points_cat)
         bbox_preds = self.bbox_head(x, self.test_cfg.sample_mod)
-        cls_out = bbox_preds['sem_scores']
-        logit_scale = self.bbox_head.logit_scale.exp()
-        vis_feat = cls_out / (cls_out.norm(dim=1, keepdim=True) + 1e-6)
-        class_features = class_features @ self.bbox_head.text_proj
-        text_feat = class_features / (class_features.norm(dim=1, keepdim=True) + 1e-6)
-        S = (logit_scale * vis_feat) @ (text_feat.transpose(1, 2))
 
-        bbox_preds['sem_scores'] = S
+        if class_features is not None:
+            class_features = torch.stack(class_features[0])
+            cls_out = bbox_preds['sem_scores']
+            logit_scale = self.bbox_head.logit_scale.exp()
+            vis_feat = cls_out / (cls_out.norm(dim=1, keepdim=True) + 1e-6)
+            class_features = class_features @ self.bbox_head.text_proj
+            text_feat = class_features / (class_features.norm(dim=1, keepdim=True) + 1e-6)
+            S = (logit_scale * vis_feat) @ (text_feat.transpose(1, 2))
+            bbox_preds['sem_scores'] = S
 
         bbox_list = self.bbox_head.get_bboxes(
             points_cat, bbox_preds, img_metas, rescale=rescale)
