@@ -48,5 +48,5 @@ class ContrastiveLoss(nn.Module):
     def clip_loss(self, similarity: torch.Tensor) -> torch.Tensor:
         caption_loss = self.contrastive_loss(similarity)
         image_loss = self.contrastive_loss(similarity.transpose(1, 2))
-        return image_loss
+        return (image_loss + caption_loss) / 2.0
 
