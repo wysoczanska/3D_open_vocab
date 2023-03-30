@@ -311,8 +311,10 @@ class VoteHeadWithFeatures(BaseModule):
 
         vis_feat = bbox_preds['sem_scores'] / (bbox_preds['sem_scores'].norm(dim=1, keepdim=True) + 1e-6)
         text_feat = mask_features @ self.text_proj
-        text_feat = text_feat.float() / (text_feat.norm(dim=1, keepdim=True) + 1e-6)
-        S = (self.logit_scale * vis_feat) @ (text_feat.transpose(1, 2))
+        text_feat = text_feat / (text_feat.norm(dim=1, keepdim=True) + 1e-6)
+        _, idxes = unique(torch.flatten(text_feat.detach(), start_dim=0, end_dim=1), dim=0)
+        S = (self.logit_scale * torch.flatten(vis_feat, start_dim=0, end_dim=1)[idxes]) \
+            @ (torch.flatten(text_feat, start_dim=0, end_dim=1)[idxes].transpose(0, 1))
 
         # contrastive loss on S
         semantic_loss = self.semantic_loss.clip_loss(S)
@@ -666,3 +668,26 @@ class VoteHeadWithFeatures(BaseModule):
         return bbox_selected, score_selected, labels
 
 
+def unique(x, dim=None):
+    """Unique elements of x and indices of those unique elements
+    https://github.com/pytorch/pytorch/issues/36748#issuecomment-619514810
+
+    e.g.
+
+    unique(tensor([
+        [1, 2, 3],
+        [1, 2, 4],
+        [1, 2, 3],
+        [1, 2, 5]
+    ]), dim=0)
+    => (tensor([[1, 2, 3],
+                [1, 2, 4],
+                [1, 2, 5]]),
+        tensor([0, 1, 3]))
+    """
+    unique, inverse = torch.unique(
+        x, sorted=True, return_inverse=True, dim=dim)
+    perm = torch.arange(inverse.size(0), dtype=inverse.dtype,
+                        device=inverse.device)
+    inverse, perm = inverse.flip([0]), perm.flip([0])
+    return unique, inverse.new_empty(unique.size(0)).scatter_(0, inverse, perm)

@@ -43,10 +43,9 @@ class ContrastiveLoss(nn.Module):
         return self.clip_loss(logits_per_vis)
 
     def contrastive_loss(self, logits: torch.Tensor) -> torch.Tensor:
-        return nn.functional.cross_entropy(logits, torch.arange(logits.shape[1], device=logits.device).repeat(len(logits), 1))
+        return nn.functional.cross_entropy(logits, torch.arange(logits.shape[0], device=logits.device))
 
     def clip_loss(self, similarity: torch.Tensor) -> torch.Tensor:
         caption_loss = self.contrastive_loss(similarity)
-        image_loss = self.contrastive_loss(similarity.transpose(1, 2))
+        image_loss = self.contrastive_loss(similarity.transpose(0, 1))
         return (image_loss + caption_loss) / 2.0
-
