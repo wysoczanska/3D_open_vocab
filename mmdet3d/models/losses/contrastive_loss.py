@@ -33,20 +33,24 @@ class ContrastiveLoss(nn.Module):
         reduction = (
             reduction_override if reduction_override else self.reduction)
 
+        vis_feat = torch.flatten(vis_feat, start_dim=0, end_dim=1)
+        text_feat = torch.flatten(text_feat, start_dim=0, end_dim=1)
+
         vis_feat = vis_feat / (vis_feat.norm(dim=1, keepdim=True) + 1e-6)
         text_feat = text_feat.float() / (text_feat.norm(dim=1, keepdim=True) + 1e-6)
 
         # cosine similarity as logits
 
         logit_scale = self.logit_scale.exp()
-        logits_per_vis = (logit_scale * vis_feat.transpose(1, 2)) @ (text_feat.transpose(1, 2))
+        logits_per_vis = (logit_scale * vis_feat.transpose(0, 1)) @ (text_feat.transpose(0, 1))
         return self.clip_loss(logits_per_vis)
 
     def contrastive_loss(self, logits: torch.Tensor) -> torch.Tensor:
-        return nn.functional.cross_entropy(logits, torch.arange(logits.shape[1], device=logits.device).repeat(len(logits), 1))
+        # return nn.functional.cross_entropy(logits, torch.arange(logits.shape[1], device=logits.device).repeat(len(logits), 1))
+        return nn.functional.cross_entropy(logits, torch.arange(logits.shape[1], device=logits.device))
 
     def clip_loss(self, similarity: torch.Tensor) -> torch.Tensor:
         caption_loss = self.contrastive_loss(similarity)
-        image_loss = self.contrastive_loss(similarity.transpose(1, 2))
+        image_loss = self.contrastive_loss(similarity.transpose(0, 1))
         return (image_loss + caption_loss) / 2.0
 

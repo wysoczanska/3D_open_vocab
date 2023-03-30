@@ -309,10 +309,13 @@ class VoteHeadWithFeatures(BaseModule):
 
         # calculate semantic loss
 
-        vis_feat = bbox_preds['sem_scores'] / (bbox_preds['sem_scores'].norm(dim=1, keepdim=True) + 1e-6)
-        text_feat = mask_features @ self.text_proj
-        text_feat = text_feat.float() / (text_feat.norm(dim=1, keepdim=True) + 1e-6)
-        S = (self.logit_scale * vis_feat) @ (text_feat.transpose(1, 2))
+        vis_feat = torch.flatten(bbox_preds['sem_scores'], start_dim=0, end_dim=1)
+        text_feat = torch.flatten(mask_features, start_dim=0, end_dim=1)
+
+        vis_feat = vis_feat / (vis_feat.norm(dim=1, keepdim=True) + 1e-6)
+        text_feat = text_feat @ self.text_proj
+        text_feat = text_feat / (text_feat.norm(dim=1, keepdim=True) + 1e-6)
+        S = (self.logit_scale * vis_feat) @ (text_feat.transpose(0, 1))
 
         # contrastive loss on S
         semantic_loss = self.semantic_loss.clip_loss(S)
